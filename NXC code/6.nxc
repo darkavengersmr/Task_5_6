@@ -1,0 +1,211 @@
+float speed,es,D1,D2,e,u,PD,Pk,speednew1,speednew2;
+long time1,time2,time3;
+float es1,PD1,PD2,D,es2,e2,e1,u1,u2,Pk1,Pk2;x,d;y;
+bool t,r;
+int robot;
+
+task main()
+{
+  // инициализация дальномера
+  SetSensorLowspeed(IN_4);
+  // направление синхронного разворота
+  r = true;
+  // номер робота 1 или 2
+  robot = 1;
+  // у нас в роботах разные датчики, поэтому разная инициализация
+  if(robot == 2)
+  {
+    SetSensorLight(IN_2);
+    SetSensorLight(IN_3);
+    // один робот будет убегать
+    t = true;
+  }
+  else
+  {
+    SetSensorColorRed(IN_2);
+    SetSensorColorRed(IN_3);
+    // другой робот будет догонять
+    t = false;
+  }
+
+  while(true)
+  {
+    // размер колеи
+    x = 180;
+    // диаметр колес, мм
+    d = 43.2;
+
+    if (t == true)
+    {
+      // таймер для синхронного разворота
+      time2 = CurrentTick();
+      // таймер для периодической смены скорости
+      time1 = CurrentTick();
+      // первые 2 секунды робот равняется, вперед не едет
+      speed = 0;
+      // "старая" ошибка Д-регулятора
+      es = 0;
+      // пропорциональный коэф-т
+      Pk = 2;
+      // дифференциальный коэф-т
+      PD = 4;
+      // таймер для 2-секундного выравнивания перед началом движения 
+      time3 = CurrentTick();
+      // запоминаем, было ли уже выравнивание
+      y = 0;
+      // фактическая средняя скорость      
+      speednew1 = 0;
+
+      while(true)
+      {
+        // через две секунды начинаем движение после выравнивания
+        if(CurrentTick() > time3+2000 && y == 0)
+        {
+          speednew1 = speed + Random(80);
+          y = 1;
+        }
+
+        // смена ролей между роботами каждые 29 секунд
+        if(CurrentTick() > time2+29000)
+        {
+          break;
+        }
+        
+        // каждые 5 секунд смена скорости
+        if(CurrentTick() > time1+5000)
+        {
+          speednew1 = speed + Random(80);
+          time1 = CurrentTick();
+        }
+
+        // показания датчиков
+        D1 = Sensor(IN_3);
+        D2 = Sensor(IN_2);
+        // ошибка регулятора
+        e = D2-D1;
+        // управляющее воздействие ПД-регулятора
+        u = e*Pk+PD*(e-es);
+        // подаем его на моторы
+        OnFwd(OUT_B,u+speednew1);
+        OnFwd(OUT_C,-u+speednew1);
+        // запоминаем ошибку для Д-регулятора
+        es = e;
+      }
+      // моторы - стоп
+      Off(OUT_BC);
+      Wait(1000);
+      // смена ролей - разворот
+      if (r == true) RotateMotorEx(OUT_BC, 30, x/d*150, 100, true, true);
+      else RotateMotorEx(OUT_BC, 30, x/d*150, -100, true, true);
+      Wait(1000);
+      t = !t;
+      r = !r;
+    }
+    else
+    {
+      time2 = CurrentTick();
+      time3 = CurrentTick();
+      speed = 0;
+      es1 = 0;
+      PD1 = 0;
+      Pk1 = 2.5;
+      es2 = 0;
+      Pk2 = 2;
+      PD2 = 6;
+      y = 0;
+
+      while(true)
+      {
+        if(CurrentTick()> time3+2000 && y == 0)
+        {
+          speed = 50;
+          y = 1;
+        }
+        if(CurrentTick() > time2+29000)
+        {
+          break;
+        }
+
+        D = SensorUS(IN_4);
+        D2 = Sensor(IN_2);
+        D1 = Sensor(IN_3);
+        
+        // ограничиваем зону видимости робота - 60 см
+        if (D > 60)
+        {
+          D = 60;
+        }
+
+        // здесь у нас целых два регулятора
+        // один ведет по линии
+        // второй - подстраивает скорость движения
+        e2 = D2 - D1;
+        e1 = D - 40;
+        u2 = e2*Pk2+PD2*(e2-es2);
+        u1 = e1*Pk1+PD1*(e1-es1);
+        OnFwd(OUT_B,speed+u1+u2);
+        OnFwd(OUT_C,speed+u1-u2);
+        
+        es1 = e1;
+        es2 = e2;
+      }
+      Off(OUT_BC);
+      Wait(1000);
+      // смена ролей - разворот
+      if (r == true) RotateMotorEx(OUT_BC, 30, x/d*150, 100, true, true);
+      else RotateMotorEx(OUT_BC, 30, x/d*150, -100, true, true);
+      Wait(1000);
+      t = !t;
+      r = !r;
+    }
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
