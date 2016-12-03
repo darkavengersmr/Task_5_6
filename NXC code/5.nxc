@@ -1,0 +1,99 @@
+﻿float x,d,speed,es,D1,D2,e,u,PD,Pk;
+
+task main()
+{
+  // инициализация датчиков
+  SetSensorLight(IN_2);
+  SetSensorLight(IN_3);
+  SetSensorLowspeed(IN_4);
+  // размер колеи
+  x = 180;
+  // диаметр колес
+  d = 43.2;
+  // средняя скорость
+  speed = 30;
+  // "старая" ошибка Д-регулятора
+  es = 0;
+  // пропорциональный коэф-т
+  Pk = 2;
+  // дифференциальный коэф-т
+  PD = 4;
+
+  // сбрасываем энкодеры  
+  ResetRotationCount(OUT_BС);
+
+  while(true)
+  {
+    // движемся по линии пока не обнаружим препятствие
+    while(SensorUS(IN_4) > 28)
+    {
+      // показания датчиков линии
+      D1 = Sensor(IN_2);
+      D2 = Sensor(IN_3);
+      // ошибка регулятора
+      e = D2-D1;
+      // управляющее воздействие
+      u = e*Pk+PD*(e-es);
+      // подаем его на моторы
+      OnFwd(OUT_B,u+speed);
+      OnFwd(OUT_C,-u+speed);
+      // сохраняем ошибка для Д-регулятора
+      es = e;
+    }
+    // моторы - стоп
+    Off(OUT_BC);
+    // поворот в сторону внутреннего изгиба трассы
+    if (MotorRotationCount(OUT_B)>MotorRotationCount(OUT_C))
+    {
+      RotateMotorEx(OUT_BC, speed, x/d*52, -100, true, true);
+    }
+    else
+    {
+      RotateMotorEx(OUT_BC, speed, x/d*52, 100, true, true);
+    }
+    Wait(500);
+    // съезжаем с линии
+    RotateMotorEx(OUT_BC, speed, 1000, 0, true, true);
+    // поворот в сторону линии
+    if (MotorRotationCount(OUT_B)<MotorRotationCount(OUT_C))
+    {
+      RotateMotorEx(OUT_BC, speed, x/d*52, -100, true, true);
+      OnRev(OUT_B,-18);
+      OnRev(OUT_C,-15);
+    }
+    else
+    {
+      RotateMotorEx(OUT_BC, speed, x/d*52, 100, true, true);
+      OnRev(OUT_B,-15);
+      OnRev(OUT_C,-18);
+    }
+    Wait(500);
+    
+    // едем до линии
+    while(Sensor(IN_3) >= 46 && Sensor(IN_2) >= 44)
+    {
+      if (Sensor(IN_3)<=46)
+      {
+        Off(OUT_C);
+      }
+      if(Sensor(IN_2)<=44)
+      {
+        Off(OUT_B);
+      }
+    }
+    Off(OUT_BC);
+    Wait(1000);
+    // пересекаем линию
+    RotateMotorEx(OUT_BC, 25, 200, 0, true, true);
+    Wait(1000);
+    // разворот для продолжения движения по линии
+    if (MotorRotationCount(OUT_B)>MotorRotationCount(OUT_C))
+    {
+      RotateMotorEx(OUT_BC, 25, x/d*90, -100, true, true);
+    }
+    else
+    {
+      RotateMotorEx(OUT_BC, 25, x/d*30, 100, true, true);
+    }
+  }
+}
